@@ -180,7 +180,11 @@
                   (typecheck-send (classT-super-name this-class)
                                   method-name
                                   arg-expr arg-type
-                                  t-classes))]))))
+                                  t-classes))]
+        [instanceofI (obj-expr class-name)
+                     (type-case Type (recur obj-expr)
+                       [objT (obj-class-name) (numT)]
+                       [else (type-error obj-expr "object")])]))))
 
 (define (typecheck-send [class-name : symbol]
                         [method-name : symbol]
@@ -295,6 +299,12 @@
                    empty)
         (numT))
 
+  ;; Tests for instanceof
+  (test (typecheck-posn (instanceofI (newI 'posn (list (numI 2) (numI 7))) 'object))
+        (numT))
+  (test/exn (typecheck-posn (instanceofI (numI 10) 'object))
+            "no type")
+  
   (test/exn (typecheck-posn (sendI (numI 10) 'mdist (numI 0)))
             "no type")
   (test/exn (typecheck-posn (sendI posn27 'mdist posn27))
