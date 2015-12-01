@@ -20,7 +20,7 @@
           (method-name : symbol)
           (arg-expr : ExprC)]
 ; InstanceOf impl
-  [instanceofC (a : ExprC)
+  [instanceofC (obj-expr : ExprC)
                (class-name : symbol)])
 
 (define-type ClassC
@@ -122,7 +122,15 @@
                         (define arg-val (recur arg-expr))]
                   (call-method class-name method-name classes
                                obj arg-val))]
-        [instanceofC (a c) this-val]))))
+        [instanceofC (obj-expr class-name)
+                     (type-case Value (recur obj-expr)
+                       [objV (obj-class-name field-vals)
+                             (type-case ClassC (find-class obj-class-name classes)
+                               [classC (name field-names methods)
+                                       (cond
+                                         [(eq? class-name name) (numV 1)]
+                                         [else (numV 0)])])]
+                       [else (error 'interp "not an object")])]))))
 
 (define (call-method class-name method-name classes
                      obj arg-val)
@@ -208,8 +216,13 @@
 
   (test (interp-posn (sendC posn531 'addDist posn27))
         (numV 18))
-  (test (interp-posn (instanceofC (numC 1) 'posn))
-        (numV 0))
+  ;; Test for instanceof
+  (test (interp-posn (instanceofC (newC 'posn (list (numC 2) (numC 7))) 'posn))
+        (numV 1))
+  (test (interp-posn (instanceofC (newC 'posn (list (numC 2) (numC 7))) 'factory12))
+          (numV 0))
+  (test/exn (interp-posn (instanceofC (numC 1) 'posn))
+        "not an object")
   
   (test/exn (interp-posn (plusC (numC 1) posn27))
             "not a number")
