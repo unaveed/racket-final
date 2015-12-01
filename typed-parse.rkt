@@ -82,6 +82,7 @@
                      (map parse-t-class classes))])
     (type-case Value v
       [numV (n) (number->s-exp n)]
+      [boolV (b) (boolean->s-exp b)]
       [objV (class-name field-vals) `object])))
 
 (module+ test
@@ -91,7 +92,7 @@
                   {}})
          '{new empty})
         `object)
-
+  
  (test (interp-t-prog 
         (list
          '{class posn extends object
@@ -110,4 +111,11 @@
                            {super mdist arg}}}})
         
         '{send {new posn3D 5 3 1} addDist {new posn 2 7}})
+       '18)
+
+ (test (interp-t-prog 
+        (list
+         '{class empty}
+         '{class empty})
+        '{send {numV -1} {numV 18}})
        '18))

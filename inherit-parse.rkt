@@ -56,6 +56,9 @@
    [(s-exp-match? '{super SYMBOL ANY} s)
     (superI (s-exp->symbol (second (s-exp->list s)))
             (parse (third (s-exp->list s))))]
+   [(s-exp-match? '{instanceof ANY SYMBOL} s)
+    (instanceofI (parse (second (s-exp->list s)))
+                 (s-exp->symbol (third (s-exp->list s))))]
    [else (error 'parse "invalid input")]))
 
 (module+ test
@@ -77,6 +80,8 @@
         (sendI (numI 1) 'm (numI 2)))
   (test (parse '{super m 1})
         (superI 'm (numI 1)))
+  (test (parse '{instanceof {new posn 1 2} posn})
+        (instanceofI (newI 'posn (list (numI 1) (numI 2))) 'posn))
   (test/exn (parse `x)
             "invalid input")
 
@@ -108,6 +113,7 @@
                      (map parse-class classes))])
     (type-case Value v
       [numV (n) (number->s-exp n)]
+      [boolV (b) (boolean->s-exp b)]
       [objV (class-name field-vals) `object])))
 
 (module+ test
