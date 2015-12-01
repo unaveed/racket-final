@@ -2,6 +2,7 @@
 
 (define-type ExprC
   [numC (n : number)]
+  [boolC (b : boolean)]
   [plusC (lhs : ExprC)
          (rhs : ExprC)]
   [multC (lhs : ExprC)
@@ -19,9 +20,13 @@
           (class-name : symbol)
           (method-name : symbol)
           (arg-expr : ExprC)]
-; InstanceOf impl
+  ; InstanceOf impl
   [instanceofC (obj-expr : ExprC)
-               (class-name : symbol)])
+               (class-name : symbol)]
+  ; if0 impl
+  [if0C (check : ExprC)
+        (true-stmt : ExprC)
+        (false-stmt : ExprC)])
 
 (define-type ClassC
   [classC (name : symbol)
@@ -34,6 +39,7 @@
 
 (define-type Value
   [numV (n : number)]
+  [boolV (b : boolean)]
   [objV (class-name : symbol)
         (field-values : (listof Value))])
 
@@ -91,6 +97,7 @@
               (interp expr classes this-val arg-val))]
       (type-case ExprC a
         [numC (n) (numV n)]
+        [boolC (b) (boolV b)]
         [plusC (l r) (num+ (recur l) (recur r))]
         [multC (l r) (num* (recur l) (recur r))]
         [thisC () this-val]
@@ -130,7 +137,14 @@
                                        (cond
                                          [(eq? class-name name) (numV 1)]
                                          [else (numV 0)])])]
-                       [else (error 'interp "not an object")])]))))
+                       [else (error 'interp "not an object")])]
+        [if0C (check true-stmt false-stmt)
+              (type-case Value (recur check)
+                [boolV (b)
+                       (cond
+                         [(and  true b) (recur true-stmt)]
+                         [else (recur false-stmt)])]
+                [else (error 'interp "not a boolean")])]))))
 
 (define (call-method class-name method-name classes
                      obj arg-val)
@@ -216,13 +230,23 @@
 
   (test (interp-posn (sendC posn531 'addDist posn27))
         (numV 18))
-  ;; Test for instanceof
+  ;; Tests for instanceof
   (test (interp-posn (instanceofC (newC 'posn (list (numC 2) (numC 7))) 'posn))
         (numV 1))
   (test (interp-posn (instanceofC (newC 'posn (list (numC 2) (numC 7))) 'factory12))
           (numV 0))
   (test/exn (interp-posn (instanceofC (numC 1) 'posn))
         "not an object")
+
+  ;; Tests for if0C
+  (test (interp-posn (if0C (boolC false)
+                           (newC 'posn empty)
+                           (newC 'posn (list (numC 13) (numC 16)))))
+        (objV 'posn (list (numV 13) (numV 16))))
+  (test (interp-posn (if0C (boolC false) (numC 3)(numC 5)))
+        (numV 5))
+  (test/exn (interp-posn (if0C (numC 3) (numC 4)(numC 5)))
+            "not a boolean")
   
   (test/exn (interp-posn (plusC (numC 1) posn27))
             "not a number")
