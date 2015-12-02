@@ -2,7 +2,6 @@
 
 (define-type ExprC
   [numC (n : number)]
-  [boolC (b : boolean)]
   [plusC (lhs : ExprC)
          (rhs : ExprC)]
   [multC (lhs : ExprC)
@@ -39,7 +38,6 @@
 
 (define-type Value
   [numV (n : number)]
-  [boolV (b : boolean)]
   [objV (class-name : symbol)
         (field-values : (listof Value))])
 
@@ -97,7 +95,6 @@
               (interp expr classes this-val arg-val))]
       (type-case ExprC a
         [numC (n) (numV n)]
-        [boolC (b) (boolV b)]
         [plusC (l r) (num+ (recur l) (recur r))]
         [multC (l r) (num* (recur l) (recur r))]
         [thisC () this-val]
@@ -140,11 +137,11 @@
                        [else (error 'interp "not an object")])]
         [if0C (check true-stmt false-stmt)
               (type-case Value (recur check)
-                [boolV (b)
+                [numV (n)
                        (cond
-                         [(and  true b) (recur true-stmt)]
+                         [(= 0 n) (recur true-stmt)]
                          [else (recur false-stmt)])]
-                [else (error 'interp "not a boolean")])]))))
+                [else (error 'interp "not a number")])]))))
 
 (define (call-method class-name method-name classes
                      obj arg-val)
@@ -239,14 +236,14 @@
         "not an object")
 
   ;; Tests for if0C
-  (test (interp-posn (if0C (boolC false)
+  (test (interp-posn (if0C (numC 1)
                            (newC 'posn empty)
                            (newC 'posn (list (numC 13) (numC 16)))))
         (objV 'posn (list (numV 13) (numV 16))))
-  (test (interp-posn (if0C (boolC false) (numC 3)(numC 5)))
-        (numV 5))
-  (test/exn (interp-posn (if0C (numC 3) (numC 4)(numC 5)))
-            "not a boolean")
+  (test (interp-posn (if0C (numC 0) (numC 3)(numC 5)))
+        (numV 3))
+  (test/exn (interp-posn (if0C (newC 'posn (list (numC 2) (numC 7))) (numC 4)(numC 5)))
+            "not a number")
   
   (test/exn (interp-posn (plusC (numC 1) posn27))
             "not a number")

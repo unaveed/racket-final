@@ -82,7 +82,6 @@
                      (map parse-t-class classes))])
     (type-case Value v
       [numV (n) (number->s-exp n)]
-      [boolV (b) (boolean->s-exp b)]
       [objV (class-name field-vals) `object])))
 
 (module+ test
@@ -113,6 +112,7 @@
         '{send {new posn3D 5 3 1} addDist {new posn 2 7}})
        '18)
 
+  ; Test for this arg
  (test (interp-t-prog 
         (list
          '{class empty}

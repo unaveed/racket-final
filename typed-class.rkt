@@ -184,7 +184,17 @@
         [instanceofI (obj-expr class-name)
                      (type-case Type (recur obj-expr)
                        [objT (obj-class-name) (numT)]
-                       [else (type-error obj-expr "object")])]))))
+                       [else (type-error obj-expr "object")])]
+        [if0I (check then-stmt else-stmt)
+              (type-case Type (recur check)
+                [numT ()
+                 (local [(define then-t (recur then-stmt))
+                         (define else-t (recur else-stmt))]
+                   (cond
+                     [(is-subtype? then-t else-t empty) else-t]
+                     [(is-subtype? else-t then-t empty) then-t]
+                     [else (numT)]))]
+                [else (type-error check "number")])]))))
 
 (define (typecheck-send [class-name : symbol]
                         [method-name : symbol]
@@ -304,6 +314,16 @@
         (numT))
   (test/exn (typecheck-posn (instanceofI (numI 10) 'object))
             "no type")
+
+  ;; Tests for if0
+  (test (typecheck (if0I (numI 0) (numI 3) (numI 4)) empty)
+        (numT))
+  (test (typecheck-posn (if0I (numI 1)
+                              (newI 'square (list (newI 'posn3D (list (numI 0) (numI 1) (numI 3)))))
+                              (newI 'posn (list (numI 0) (numI 1)))))
+        (objT 'posn3D)) 
+  (test/exn (typecheck (if0I (newI 'object empty) (numI 3) (numI 4)) empty)
+        "no type")
   
   (test/exn (typecheck-posn (sendI (numI 10) 'mdist (numI 0)))
             "no type")

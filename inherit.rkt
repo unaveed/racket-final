@@ -23,7 +23,10 @@
   [superI (method-name : symbol)
           (arg-expr : ExprI)]
   [instanceofI (obj-expr : ExprI)
-               (class-name : symbol)])
+               (class-name : symbol)]
+  [if0I (check : ExprI)
+        (then-stmt : ExprI)
+        (else-stmt : ExprI)])
 
 (define-type ClassI
   [classI (name : symbol)
@@ -63,7 +66,9 @@
                       method-name
                       (recur arg-expr))]
       [instanceofI (obj-expr class-name)
-                   (instanceofC (recur obj-expr) class-name)])))
+                   (instanceofC (recur obj-expr) class-name)]
+      [if0I (check then-stmt else-stmt)
+            (if0C (recur check)(recur then-stmt)(recur else-stmt))])))
 
 (module+ test
   (test (expr-i->c (numI 10) 'object)
@@ -86,7 +91,10 @@
         (ssendC (thisC) 'posn 'mdist (numC 2)))
   ; Test for instanceOfI
   (test (expr-i->c (instanceofI (newI 'object (list (numI 1))) 'object) 'object)
-        (instanceofC (newC 'object (list (numC 1))) 'object)))
+        (instanceofC (newC 'object (list (numC 1))) 'object))
+  ; Test for if0I
+  (test (expr-i->c (if0I (numI 0) (numI 3) (numI 4)) 'object)
+        (if0C (numC 0) (numC 3) (numC 4))))
 
 ;; ----------------------------------------
 

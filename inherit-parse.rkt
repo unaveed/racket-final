@@ -59,6 +59,10 @@
    [(s-exp-match? '{instanceof ANY SYMBOL} s)
     (instanceofI (parse (second (s-exp->list s)))
                  (s-exp->symbol (third (s-exp->list s))))]
+   [(s-exp-match? '{if0 ANY ANY ANY} s)
+    (if0I (parse (second (s-exp->list s)))
+          (parse (third (s-exp->list s)))
+          (parse (fourth (s-exp->list s))))]
    [else (error 'parse "invalid input")]))
 
 (module+ test
@@ -113,7 +117,6 @@
                      (map parse-class classes))])
     (type-case Value v
       [numV (n) (number->s-exp n)]
-      [boolV (b) (boolean->s-exp b)]
       [objV (class-name field-vals) `object])))
 
 (module+ test
