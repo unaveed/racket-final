@@ -124,6 +124,7 @@
     [classI (name super-name field-names methods)
             (classC
              name
+             super-name
              field-names
              (map (lambda (m) (method-i->c m super-name))
                   methods))]))
@@ -136,6 +137,7 @@
             (list posn3d-mdist-i-method)))
   (define posn3d-c-class-not-flat
     (classC 'posn3d
+            'posn
             (list 'z)
             (list posn3d-mdist-c-method)))
   
@@ -148,11 +150,12 @@
                        [classes : (listof ClassC)] 
                        [i-classes : (listof ClassI)]) : ClassC
   (type-case ClassC c
-    [classC (name field-names methods)
+    [classC (name super-name field-names methods)
             (type-case ClassC (flatten-super name classes i-classes)
-              [classC (super-name super-field-names super-methods)
+              [classC (super-name super-class-name super-field-names super-methods)
                       (classC
                        name
+                       super-name
                        (add-fields super-field-names field-names)
                        (add/replace-methods super-methods methods))])]))
 
@@ -162,7 +165,7 @@
   (type-case ClassI (find-i-class name i-classes)
     [classI (name super-name field-names i-methods)
             (if (equal? super-name 'object)
-                (classC 'object empty empty)
+                (classC 'object 'object empty empty)
                 (flatten-class (find-class super-name classes)
                                classes
                                i-classes))]))
@@ -184,6 +187,7 @@
                     (sendC (argC) 'mdist (numC 0)))))
   (define posn-c-class-not-flat
     (classC 'posn
+            'object
             (list 'x 'y)
             (list (methodC 'mdist
                            (plusC (getC (thisC) 'x)
@@ -191,6 +195,7 @@
                   addDist-c-method)))
   (define posn3d-c-class
     (classC 'posn3d
+            'posn
             (list 'x 'y 'z)
             (list posn3d-mdist-c-method
                   addDist-c-method)))

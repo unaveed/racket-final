@@ -131,8 +131,7 @@
                   (call-method class-name method-name classes
                                obj arg-val))]
         [instanceofC (obj-expr class-name)
-                     (type-case
-                     (check-instance1 class-name (recur obj-expr) classes)]
+                     (check-instance class-name (recur obj-expr) classes)]
         [if0C (check true-stmt false-stmt)
               (type-case Value (recur check)
                 [numV (n)
@@ -144,12 +143,9 @@
                (local [(define obj (recur obj-expr))]
                  (type-case Value obj
                    [objV (class-name field-vals)
-                         (cond
-                           [(eq? name class-name) obj]
-                           [else (if
-                                  (eq? (numV 1) (check-instance name obj classes))
-                                  obj
-                                  (error 'interp "invalid cast"))])]
+                         (if (subclass? class-name name classes)
+                             obj
+                             (error 'interp "invalid cast"))]
                    [else (error 'interp "not an object")]))]))))
 
 (define (call-method class-name method-name classes
@@ -176,34 +172,24 @@
 (define (num* x y) (num-op * '* x y))
 
 (define check-instance : (symbol Value (listof ClassC) -> Value)
-  (lambda (class-name obj classes)
+  (lambda (subclass obj classes)
     (type-case Value obj
-      [objV (obj-class-name field-vals)
-            (type-case ClassC (find-class obj-class-name classes)
-              [classC (name superclass field-names methods)
-                      (cond
-                        [(eq? class-name name) (numV 1)]
-                        [else (numV 0)])])]
+      [objV (class-name field-vals)
+            (if (subclass? class-name subclass classes)
+                (numV 0)
+                (begin
+                  (find-class subclass classes)
+                  (numV 1)))]
       [else (error 'interp "not an object")])))
 
-(define check-instance1 : (symbol symbol (listof ClassC) -> Value)
-  (lambda (class-name parent-name classes)
-    (local [(define res (lookup-class class-name parent-name classes))]
-      (if res
-        (numV 1)
-        (numV 0)))))
-
-(define (lookup-class [name : symbol]
-                      [parent : symbol]
-                      [classes : (listof ClassC)])
+(define (subclass? class-name subclass-name classes)
   (cond
-    [(empty? classes) #f]
-    [else (type-case ClassC (first classes)
-            [classC (name2 superclass field-names methods)
-                    (if (or (equal? name name2)
-                            (equal? parent name2))
-                        #t
-                        (lookup-class name parent (rest classes)))])]))
+    [(equal? class-name subclass-name) #t]
+    [(equal? class-name 'object) #f]
+    [else
+     (type-case ClassC (find-class class-name classes)
+       [classC (name super field-names methods)
+               (subclass? super subclass-name classes)])]))
 
 ;; ----------------------------------------
 ;; Examples
@@ -212,7 +198,7 @@
   (define posn-class
     (classC 
      'posn
-     'super
+     'object
      (list 'x 'y)
      (list (methodC 'mdist
                     (plusC (getC (thisC) 'x) (getC (thisC) 'y)))
@@ -269,12 +255,16 @@
   (test (interp-posn (sendC posn531 'addDist posn27))
         (numV 18))
   ;; Tests for instanceof
-  (test (interp-posn (instanceofC (newC 'posn (list (numC 2) (numC 7))) 'posn))
+  (test (interp-posn (instanceofC posn27 'posn))
+        (numV 0))
+  (test (interp-posn (instanceofC posn531 'posn))
+        (numV 0))
+  (test (interp-posn (instanceofC posn27 'object))
+        (numV 0))
+  (test (interp-posn (instanceofC posn27 'posn3D))
         (numV 1))
-  (test (interp-posn (instanceofC (newC 'posn (list (numC 2) (numC 7))) 'factory12))
-          (numV 0))
   (test/exn (interp-posn (instanceofC (numC 1) 'posn))
-        "not an object")
+            "not an object")
 
   ;; Tests for if0C
   (test (interp-posn (if0C (numC 1)
@@ -289,6 +279,8 @@
   ;; Tests for cast
   (test (interp-posn (castC 'posn (newC 'posn3D (list (numC 13) (numC 14) (numC 1)))))
         (objV 'posn3D (list (numV 13) (numV 14) (numV 1))))
+  (test/exn (interp-posn (castC 'posn (numC 3)))
+        "not an object")
   (test/exn (interp-posn (castC 'posn3D (newC 'posn (list (numC 13) (numC 14)))))
         "invalid cast")
   
