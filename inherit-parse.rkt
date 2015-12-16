@@ -63,6 +63,9 @@
     (if0I (parse (second (s-exp->list s)))
           (parse (third (s-exp->list s)))
           (parse (fourth (s-exp->list s))))]
+   [(s-exp-match? '{cast SYMBOL ANY} s)
+    (castI (s-exp->symbol (second (s-exp->list s)))
+           (parse (third (s-exp->list s))))]
    [else (error 'parse "invalid input")]))
 
 (module+ test
@@ -90,6 +93,9 @@
   ; if0
   (test (parse '{if0 0 {new posn 1 2} {new posn3D 1 2 3}})
         (if0I (numI 0) (newI 'posn (list (numI 1)(numI 2)))(newI 'posn3D (list (numI 1)(numI 2)(numI 3)))))
+  ; castC
+  (test (parse '{cast posn {new posn 1 2}})
+        (castI 'posn (newI 'posn (list (numI 1)(numI 2)))))
   (test/exn (parse `x)
             "invalid input")
 
@@ -147,7 +153,7 @@
          (list posn-class posn3D-class)
          '{send {new posn3D 5 3 1} addDist {new posn 2 7}})
         '18)
-  ; Test for instanceof
+  ;; Test for instanceof
   (test (interp-prog 
          (list
           posn-class posn3D-class)
@@ -160,5 +166,19 @@
   (test/exn (interp-prog 
              (list posn-class posn3D-class)
              '{instanceof  13 posn})
-            "not an object"))
+            "not an object")
+  ;; Test for if0
+  (test (interp-prog
+         (list)
+         '{if0 0 14 15})
+        '14)
+  (test (interp-prog
+         (list posn-class posn3D-class)
+         '{if0 1 5 {new posn3D 4 5 6}})
+        `object)
+  ;; Test for cast
+  (test (interp-prog
+         (list posn-class posn3D-class)
+         '{cast object {new posn3D 8 0 8}})
+        `object))
 

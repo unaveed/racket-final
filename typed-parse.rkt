@@ -85,6 +85,31 @@
       [objV (class-name field-vals) `object])))
 
 (module+ test
+  (define animal-classes
+    (list
+     '{class animal extends object
+        {[age : num]}
+        {addyear : num -> num
+                 {+ {get this age} arg}}}
+     
+     '{class mammal extends animal
+        {[weight : num]}
+        {addweight : num -> num
+                   {+ {get this weight} arg}}}
+     
+     '{class reptile extends animal
+        {[legs : num]}
+        {addlegs : num -> num
+                 {+ {get this legs} arg}}}
+     
+     '{class whale extends mammal
+        {[length : num]}
+        {addlength : num -> num
+                   {+ {get this length} arg}}}
+     
+     '{class snake extends reptile
+        {}}))
+
   (test (interp-t-prog
          (list
           '{class empty extends object
@@ -92,7 +117,7 @@
          '{new empty})
         `object)
   
- (test (interp-t-prog 
+  (test (interp-t-prog 
         (list
          '{class posn extends object
                  {[x : num]
@@ -111,9 +136,47 @@
         
         '{send {new posn3D 5 3 1} addDist {new posn 2 7}})
        '18)
-  
+
+  ; Test for instanceof
+  (test (interp-t-prog
+         (list
+          '{class posn extends object
+             {[x : num]
+              [y : num]}
+             {mdist : num -> num
+                    {+ {get this x} {get this y}}}
+             {addDist : posn -> num
+                      {+ {send arg mdist 0}
+                         {send this mdist 0}}}}
+          
+          '{class posn3D extends posn
+             {[z : num]}
+             {mdist : num -> num
+                    {+ {get this z} 
+                       {super mdist arg}}}})
+         '{instanceof {new posn3D 3 6 9} posn})
+        '0)
+  ;; Tests for if0
+  (test (interp-t-prog
+         empty
+         '{if0 0 1 2})
+        '1)
+  (test (interp-t-prog
+         animal-classes
+         '{if0 0 {new whale 10 20 40} {new mammal 10 20}})
+        `object)
+
+  ;; Tests for cast
+  (test (interp-t-prog
+         animal-classes
+         '{cast animal {new whale 3 5 5}})
+        `object)
+  (test (interp-t-prog
+         animal-classes
+         '{cast object {new snake 0 10}})
+        `object)
   ; Test for this arg
- (test (interp-t-prog 
+  (test (interp-t-prog 
         (list
          '{class empty}
          '{class empty})

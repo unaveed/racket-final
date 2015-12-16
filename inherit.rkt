@@ -26,7 +26,9 @@
                (class-name : symbol)]
   [if0I (check : ExprI)
         (then-stmt : ExprI)
-        (else-stmt : ExprI)])
+        (else-stmt : ExprI)]
+  [castI (class-name : symbol)
+         (obj-expr : ExprI)])
 
 (define-type ClassI
   [classI (name : symbol)
@@ -68,7 +70,9 @@
       [instanceofI (obj-expr class-name)
                    (instanceofC (recur obj-expr) class-name)]
       [if0I (check then-stmt else-stmt)
-            (if0C (recur check)(recur then-stmt)(recur else-stmt))])))
+            (if0C (recur check)(recur then-stmt)(recur else-stmt))]
+      [castI (class-name obj-expr)
+             (castC class-name (recur obj-expr))])))
 
 (module+ test
   (test (expr-i->c (numI 10) 'object)
@@ -94,7 +98,10 @@
         (instanceofC (newC 'object (list (numC 1))) 'object))
   ; Test for if0I
   (test (expr-i->c (if0I (numI 0) (numI 3) (numI 4)) 'object)
-        (if0C (numC 0) (numC 3) (numC 4))))
+        (if0C (numC 0) (numC 3) (numC 4)))
+  ; Test for castI
+  (test (expr-i->c (castI 'object (newI 'posn (list (numI 3)(numI 4)))) 'object)
+        (castC 'object (newC 'posn (list (numC 3)(numC 4))))))
 
 ;; ----------------------------------------
 
@@ -299,9 +306,28 @@
          (list posn-i-class
                posn3d-i-class))
         (numV 0))
-    (test (interp-i
-           (instanceofI (newI 'posn (list (numI 4)(numI 2)))
-                               'posn3d)
-           (list posn-i-class
-                 posn3d-i-class))
-          (numV 1)))
+  (test (interp-i
+         (instanceofI (newI 'posn (list (numI 4)(numI 2)))
+                      'posn3d)
+         (list posn-i-class
+               posn3d-i-class))
+        (numV 1))
+  ;; if0 test
+  (test (interp-i
+         (if0I (numI 0)
+               (newI 'posn3d (list (numI 3)(numI 4)(numI 5)))
+               (newI 'posn (list (numI 3)(numI 4))))
+         (list posn-i-class
+               posn3d-i-class))
+        (objV 'posn3d (list (numV 3)(numV 4)(numV 5))))
+  (test (interp-i
+         (if0I (numI 1)
+               (newI 'posn3d (list (numI 3)(numI 4)(numI 5)))
+               (newI 'posn (list (numI 3)(numI 4))))
+         (list posn-i-class
+               posn3d-i-class))
+        (objV 'posn (list (numV 3)(numV 4))))
+  (test (interp-i
+         (castI 'object (newI 'posn (list (numI 3)(numI 4))))
+         (list posn-i-class posn3d-i-class))
+        (objV 'posn (list (numV 3)(numV 4)))))

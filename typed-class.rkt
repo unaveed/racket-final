@@ -181,6 +181,7 @@
                                   method-name
                                   arg-expr arg-type
                                   t-classes))]
+        ;; Umair's implementations
         [instanceofI (obj-expr class-name)
                      (type-case Type (recur obj-expr)
                        [objT (obj-class-name) (numT)]
@@ -203,7 +204,18 @@
                                             t-classes)]
                                      [else (type-error else-t "number")])]
                              [else (type-error then-t "number")])]))]
-                [else (type-error check "number")])]))))
+                [else (type-error check "number")])]
+        [castI (class-name obj-expr)
+               (local [(define t (recur obj-expr))]
+                 (type-case Type t
+                   [objT (class-name-t)
+                         (cond
+                           [(equal? class-name class-name-t) t]
+                           [else (if (or (is-subclass? class-name class-name-t t-classes)
+                                         (is-subclass? class-name-t class-name t-classes))
+                                     t
+                                     (type-error t (symbol->string class-name)))])]
+                   [else (type-error t "number")]))]))))
 
 (define (typecheck-send [class-name : symbol]
                         [method-name : symbol]
@@ -337,6 +349,10 @@
   (define (typecheck-posn a)
     (typecheck a
                (list posn-t-class posn3D-t-class square-t-class)))
+
+  (define (typecheck-animal a)
+    (typecheck a
+               (list animal-t-class mammal-t-class reptile-t-class whale-t-class snake-t-class)))
   
   (define posn27 (newI 'posn (list (numI 2) (numI 7))))
   (define posn531 (newI 'posn3D (list (numI 5) (numI 3) (numI 1))))
@@ -370,17 +386,25 @@
   ;; Tests for if0
   (test (typecheck (if0I (numI 0) (numI 3) (numI 4)) empty)
         (numT))
-  (test (typecheck (if0I (numI 4)
+  (test (typecheck-animal (if0I (numI 4)
                          (newI 'whale (list (numI 5)(numI 4)(numI 10)))
-                         (newI 'snake (list (numI 3)(numI 0))))
-                   (list animal-t-class mammal-t-class reptile-t-class whale-t-class snake-t-class))
+                         (newI 'snake (list (numI 3)(numI 0)))))
         (objT 'animal))
   (test (typecheck-posn (if0I (numI 1) posn27 posn531))
         (objT 'posn))
   (test/exn (typecheck (if0I (newI 'object empty) (numI 3) (numI 4)) empty)
-        "no type")
+            "no type")
   (test/exn (typecheck-posn (if0I (numI 1) (numI 4) posn531))
-        "no type")
+            "no type")
+
+  ;; Tests for cast
+  (test (typecheck-animal (castI 'whale (newI 'mammal (list (numI 4)(numI 17)))))
+        (objT 'mammal))
+  (test (typecheck-posn (castI 'posn posn531))
+        (objT 'posn3D))
+  
+  (test/exn (typecheck-animal (castI 'posn (newI 'whale (list (numI 4)(numI 30)))))
+            "no type")
   
   (test/exn (typecheck-posn (sendI (numI 10) 'mdist (numI 0)))
             "no type")

@@ -279,10 +279,12 @@
   ;; Tests for cast
   (test (interp-posn (castC 'posn (newC 'posn3D (list (numC 13) (numC 14) (numC 1)))))
         (objV 'posn3D (list (numV 13) (numV 14) (numV 1))))
+  (test (interp-posn (castC 'object (newC 'posn3D (list (numC 1)(numC 2)(numC 3)))))
+        (objV 'posn3D (list (numV 1)(numV 2)(numV 3))))
   (test/exn (interp-posn (castC 'posn (numC 3)))
-        "not an object")
+            "not an object")
   (test/exn (interp-posn (castC 'posn3D (newC 'posn (list (numC 13) (numC 14)))))
-        "invalid cast")
+            "invalid cast")
   
   (test/exn (interp-posn (plusC (numC 1) posn27))
             "not a number")
