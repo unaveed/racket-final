@@ -193,9 +193,16 @@
                    (cond
                      [(is-subtype? then-t else-t t-classes) else-t]
                      [(is-subtype? else-t then-t t-classes) then-t]
-                     [else (if (same-super-type? then-t else-t t-classes)
-                               (objT 't)
-                               (objT 'f))]))]
+                     [else (type-case Type then-t
+                             [objT (class-name-then)
+                                   (type-case Type else-t
+                                     [objT (class-name-else)
+                                           (same-super-type?
+                                            (find-classT class-name-then t-classes)
+                                            (find-classT class-name-else t-classes)
+                                            t-classes)]
+                                     [else (type-error else-t "number")])]
+                             [else (type-error then-t "number")])]))]
                 [else (type-error check "number")])]))))
 
 (define (typecheck-send [class-name : symbol]
@@ -262,10 +269,17 @@
          t-classes)
     (typecheck-expr a t-classes (numT) (objT 'bad))))
 
-(define (same-super-type? [thn : Type][els : Type][t-classes : (listof ClassT)])
-  (begin
-    #f
-    #t))
+(define (same-super-type? [thn : ClassT][els : ClassT][t-classes : (listof ClassT)])
+  (type-case ClassT thn
+    [classT (name-t super-t fields-t methods-t)
+            (type-case ClassT els
+              [classT (name-e super-e fields-e methods-e)
+                      (if (eq? name-t name-e)
+                          (objT name-t)
+                          (same-super-type?
+                           (find-classT super-t t-classes)
+                           (find-classT super-e t-classes) t-classes))])]))
+                              
 
 ;; ----------------------------------------
 
@@ -291,7 +305,7 @@
             (list (fieldT 'topleft (objT 'posn)))
             (list)))
 
-  ;; My objects
+  ;; Objects to test general if0
   (define animal-t-class
     (classT 'animal 'object
             (list (fieldT 'age (numT)))
@@ -303,18 +317,22 @@
             (list (fieldT 'weight (numT)))
             (list (methodT 'addweight (numT) (numT)
                            (plusI (getI (thisI) 'weight) (argI))))))
-
+  (define reptile-t-class
+    (classT 'reptile 'animal
+            (list (fieldT 'legs (numT)))
+            (list (methodT 'addlegs (numT) (numT)
+                           (plusI (getI (thisI) 'legs) (argI))))))
+  
   (define whale-t-class
     (classT 'whale 'mammal
             (list (fieldT 'length (numT)))
             (list (methodT 'addlength (numT) (numT)
                            (plusI (getI (thisI) 'length) (argI))))))
 
-  (define bear-t-class
-    (classT 'bear 'mammal
-            (list (fieldT 'claws (numT)))
-            (list (methodT 'addclaws (numT) (numT)
-                           (plusI (getI (thisI) 'claws) (argI))))))
+  (define snake-t-class
+    (classT 'snake 'reptile
+            (list)
+            (list)))
 
   (define (typecheck-posn a)
     (typecheck a
@@ -353,14 +371,15 @@
   (test (typecheck (if0I (numI 0) (numI 3) (numI 4)) empty)
         (numT))
   (test (typecheck (if0I (numI 4)
-                         (newI 'whale (list (numI 5)))
-                         (newI 'bear (list (numI 6))))
-                   (list animal-t-class mammal-t-class whale-t-class bear-t-class))
-        (objT 'object))
-  
+                         (newI 'whale (list (numI 5)(numI 4)(numI 10)))
+                         (newI 'snake (list (numI 3)(numI 0))))
+                   (list animal-t-class mammal-t-class reptile-t-class whale-t-class snake-t-class))
+        (objT 'animal))
   (test (typecheck-posn (if0I (numI 1) posn27 posn531))
         (objT 'posn))
   (test/exn (typecheck (if0I (newI 'object empty) (numI 3) (numI 4)) empty)
+        "no type")
+  (test/exn (typecheck-posn (if0I (numI 1) (numI 4) posn531))
         "no type")
   
   (test/exn (typecheck-posn (sendI (numI 10) 'mdist (numI 0)))
