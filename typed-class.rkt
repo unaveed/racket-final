@@ -191,9 +191,11 @@
                  (local [(define then-t (recur then-stmt))
                          (define else-t (recur else-stmt))]
                    (cond
-                     [(is-subtype? then-t else-t empty) else-t]
-                     [(is-subtype? else-t then-t empty) then-t]
-                     [else (numT)]))]
+                     [(is-subtype? then-t else-t t-classes) else-t]
+                     [(is-subtype? else-t then-t t-classes) then-t]
+                     [else (if (same-super-type? then-t else-t t-classes)
+                               (objT 't)
+                               (objT 'f))]))]
                 [else (type-error check "number")])]))))
 
 (define (typecheck-send [class-name : symbol]
@@ -260,6 +262,11 @@
          t-classes)
     (typecheck-expr a t-classes (numT) (objT 'bad))))
 
+(define (same-super-type? [thn : Type][els : Type][t-classes : (listof ClassT)])
+  (begin
+    #f
+    #t))
+
 ;; ----------------------------------------
 
 (module+ test
@@ -283,6 +290,31 @@
     (classT 'square 'object
             (list (fieldT 'topleft (objT 'posn)))
             (list)))
+
+  ;; My objects
+  (define animal-t-class
+    (classT 'animal 'object
+            (list (fieldT 'age (numT)))
+            (list (methodT 'addyear (numT) (numT)
+                           (plusI (getI (thisI) 'age) (argI))))))
+
+  (define mammal-t-class
+    (classT 'mammal 'animal
+            (list (fieldT 'weight (numT)))
+            (list (methodT 'addweight (numT) (numT)
+                           (plusI (getI (thisI) 'weight) (argI))))))
+
+  (define whale-t-class
+    (classT 'whale 'mammal
+            (list (fieldT 'length (numT)))
+            (list (methodT 'addlength (numT) (numT)
+                           (plusI (getI (thisI) 'length) (argI))))))
+
+  (define bear-t-class
+    (classT 'bear 'mammal
+            (list (fieldT 'claws (numT)))
+            (list (methodT 'addclaws (numT) (numT)
+                           (plusI (getI (thisI) 'claws) (argI))))))
 
   (define (typecheck-posn a)
     (typecheck a
@@ -312,16 +344,22 @@
   ;; Tests for instanceof
   (test (typecheck-posn (instanceofI (newI 'posn (list (numI 2) (numI 7))) 'object))
         (numT))
+  (test (typecheck-posn (instanceofI posn27 'posn531))
+        (numT))
   (test/exn (typecheck-posn (instanceofI (numI 10) 'object))
             "no type")
 
   ;; Tests for if0
   (test (typecheck (if0I (numI 0) (numI 3) (numI 4)) empty)
         (numT))
-  (test (typecheck-posn (if0I (numI 1)
-                              (newI 'square (list (newI 'posn3D (list (numI 0) (numI 1) (numI 3)))))
-                              (newI 'posn (list (numI 0) (numI 1)))))
-        (objT 'posn3D)) 
+  (test (typecheck (if0I (numI 4)
+                         (newI 'whale (list (numI 5)))
+                         (newI 'bear (list (numI 6))))
+                   (list animal-t-class mammal-t-class whale-t-class bear-t-class))
+        (objT 'object))
+  
+  (test (typecheck-posn (if0I (numI 1) posn27 posn531))
+        (objT 'posn))
   (test/exn (typecheck (if0I (newI 'object empty) (numI 3) (numI 4)) empty)
         "no type")
   

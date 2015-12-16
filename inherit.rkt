@@ -291,4 +291,17 @@
                 (newI 'posn (list (numI 2) (numI 7))))
          (list posn-i-class
                posn3d-i-class))
-        (numV 18)))
+        (numV 18))
+  ;; instanceofI test
+  (test (interp-i
+         (instanceofI (newI 'posn3d (list (numI 5)(numI 4)(numI 2)))
+                               'posn)
+         (list posn-i-class
+               posn3d-i-class))
+        (numV 0))
+    (test (interp-i
+           (instanceofI (newI 'posn (list (numI 4)(numI 2)))
+                               'posn3d)
+           (list posn-i-class
+                 posn3d-i-class))
+          (numV 1)))

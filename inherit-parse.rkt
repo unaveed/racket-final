@@ -84,8 +84,12 @@
         (sendI (numI 1) 'm (numI 2)))
   (test (parse '{super m 1})
         (superI 'm (numI 1)))
+  ; instanceof
   (test (parse '{instanceof {new posn 1 2} posn})
         (instanceofI (newI 'posn (list (numI 1) (numI 2))) 'posn))
+  ; if0
+  (test (parse '{if0 0 {new posn 1 2} {new posn3D 1 2 3}})
+        (if0I (numI 0) (newI 'posn (list (numI 1)(numI 2)))(newI 'posn3D (list (numI 1)(numI 2)(numI 3)))))
   (test/exn (parse `x)
             "invalid input")
 
@@ -120,6 +124,18 @@
       [objV (class-name field-vals) `object])))
 
 (module+ test
+    (define posn-class
+    '{class posn extends object
+       {x y}
+       {mdist {+ {get this x} {get this y}}}
+       {addDist {+ {send arg mdist 0}
+                   {send this mdist 0}}}})
+  (define posn3D-class
+    '{class posn3D extends posn
+       {z}
+       {mdist {+ {get this z} 
+                 {super mdist arg}}}})
+  
   (test (interp-prog
          (list
           '{class empty extends object
@@ -127,19 +143,22 @@
          '{new empty})
         `object)
 
- (test (interp-prog 
-        (list
-         '{class posn extends object
-                 {x y}
-                 {mdist {+ {get this x} {get this y}}}
-                 {addDist {+ {send arg mdist 0}
-                             {send this mdist 0}}}}
-         
-         '{class posn3D extends posn
-                 {z}
-                 {mdist {+ {get this z} 
-                           {super mdist arg}}}})
-        
-        '{send {new posn3D 5 3 1} addDist {new posn 2 7}})
-       '18))
+  (test (interp-prog 
+         (list posn-class posn3D-class)
+         '{send {new posn3D 5 3 1} addDist {new posn 2 7}})
+        '18)
+  ; Test for instanceof
+  (test (interp-prog 
+         (list
+          posn-class posn3D-class)
+         '{instanceof {new posn 2 7} posn3D})
+        '1)
+  (test (interp-prog 
+         (list posn-class posn3D-class)
+         '{instanceof {new posn3D 4 5 6} posn})
+        '0)
+  (test/exn (interp-prog 
+             (list posn-class posn3D-class)
+             '{instanceof  13 posn})
+            "not an object"))
 
