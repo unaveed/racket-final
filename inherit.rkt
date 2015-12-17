@@ -13,6 +13,7 @@
          (rhs : ExprI)]
   [argI]
   [thisI]
+  [nullI]
   [newI (class-name : symbol)
         (args : (listof ExprI))]
   [getI (obj-expr : ExprI)
@@ -54,6 +55,7 @@
       [multI (l r) (multC (recur l) (recur r))]
       [argI () (argC)]
       [thisI () (thisC)]
+      [nullI () (nullC)]
       [newI (class-name field-exprs)
             (newC class-name (map recur field-exprs))]
       [getI (expr field-name)
@@ -85,6 +87,9 @@
         (argC))
   (test (expr-i->c (thisI) 'object)
         (thisC))
+  ; Test for nullI
+  (test (expr-i->c (nullI) 'object)
+        (nullC))
   (test (expr-i->c (newI 'object (list (numI 1))) 'object)
         (newC 'object (list (numC 1))))
   (test (expr-i->c (getI (numI 1) 'x) 'object)
@@ -330,4 +335,15 @@
   (test (interp-i
          (castI 'object (newI 'posn (list (numI 3)(numI 4))))
          (list posn-i-class posn3d-i-class))
-        (objV 'posn (list (numV 3)(numV 4)))))
+        (objV 'posn (list (numV 3)(numV 4))))
+  ;; null test
+  (test/exn (interp-i
+             (getI (nullI) 'mdist)
+             (list posn-i-class
+                   posn3d-i-class))
+            "null pointer exception")
+  (test/exn (interp-i
+         (sendI (nullI) 'mdist (numI 0))
+                  (list posn-i-class
+                        posn3d-i-class))
+            "null pointer exception"))

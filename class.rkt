@@ -28,7 +28,9 @@
         (false-stmt : ExprC)]
   ; cast impl
   [castC (class-name : symbol)
-         (obj-expr : ExprC)])
+         (obj-expr : ExprC)]
+  ; null impl
+  [nullC])
 
 (define-type ClassC
   [classC (name : symbol)
@@ -41,6 +43,7 @@
            (body-expr : ExprC)])
 
 (define-type Value
+  [nullV]
   [numV (n : number)]
   [objV (class-name : symbol)
         (field-values : (listof Value))])
@@ -103,6 +106,8 @@
         [multC (l r) (num* (recur l) (recur r))]
         [thisC () this-val]
         [argC () arg-val]
+        ; NullC
+        [nullC () (nullV)]
         [newC (class-name field-exprs)
               (local [(define c (find-class class-name classes))
                       (define vals (map recur field-exprs))]
@@ -116,6 +121,7 @@
                         [classC (name superclass field-names methods)
                                 (get-field field-name field-names 
                                            field-vals)])]
+                [nullV () (error 'interp "null pointer exception")]
                 [else (error 'interp "not an object")])]
         [sendC (obj-expr method-name arg-expr)
                (local [(define obj (recur obj-expr))
@@ -124,6 +130,7 @@
                    [objV (class-name field-vals)
                          (call-method class-name method-name classes
                                       obj arg-val)]
+                   [nullV () (error 'interp "null pointer exception")]
                    [else (error 'interp "not an object")]))]
         [ssendC (obj-expr class-name method-name arg-expr)
                 (local [(define obj (recur obj-expr))
@@ -238,6 +245,10 @@
                 empty (numV -1) (numV -1))
         (numV 70))
 
+  ; Test for nullC
+  (test (interp (nullC) empty (numV -1) (numV -1))
+        (nullV))
+
   (test (interp-posn (newC 'posn (list (numC 2) (numC 7))))
         (objV 'posn (list (numV 2) (numV 7))))
 
@@ -285,7 +296,13 @@
             "not an object")
   (test/exn (interp-posn (castC 'posn3D (newC 'posn (list (numC 13) (numC 14)))))
             "invalid cast")
-  
+
+  ; Test for null
+  (test/exn (interp-posn (sendC (nullC) 'addX (numC 10)))
+            "null pointer exception")
+  (test/exn (interp-posn (getC (nullC) 'x))
+            "null pointer exception")
+
   (test/exn (interp-posn (plusC (numC 1) posn27))
             "not a number")
   (test/exn (interp-posn (getC (numC 1) 'x))

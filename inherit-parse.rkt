@@ -37,6 +37,8 @@
    [(s-exp-match? `NUMBER s) (numI (s-exp->number s))]
    [(s-exp-match? `arg s) (argI)]
    [(s-exp-match? `this s) (thisI)]
+   ; Null
+   [(s-exp-match? `null s) (nullI)]
    [(s-exp-match? '{+ ANY ANY} s)
     (plusI (parse (second (s-exp->list s)))
            (parse (third (s-exp->list s))))]
@@ -75,6 +77,9 @@
         (argI))
   (test (parse `this)
         (thisI))
+  ; null
+  (test (parse `null)
+        (nullI))
   (test (parse '{+ 1 2})
         (plusI (numI 1) (numI 2)))
   (test (parse '{* 1 2})
@@ -126,6 +131,7 @@
   (let ([v (interp-i (parse a)
                      (map parse-class classes))])
     (type-case Value v
+      [nullV () `null]
       [numV (n) (number->s-exp n)]
       [objV (class-name field-vals) `object])))
 
@@ -180,5 +186,7 @@
   (test (interp-prog
          (list posn-class posn3D-class)
          '{cast object {new posn3D 8 0 8}})
-        `object))
+        `object)
+  ;; Test for null
+  )
 
