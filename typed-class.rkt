@@ -87,6 +87,15 @@
        [classT (name super-name fields methods)
                (is-subclass? super-name name2 t-classes)])]))
 
+(define (is-superclass? super name t-classes)
+  (cond
+    [(equal? super name) #t]
+    [(equal? 'object name) #f]
+    [else
+     (type-case ClassT (find-classT name t-classes)
+       [classT (class-name super-name fields methods)
+               (is-superclass? super super-name t-classes)])]))
+
 (define (is-subtype? t1 t2 t-classes)
   (type-case Type t1
     [objT (name1)
@@ -96,9 +105,30 @@
             [else false])]
     [else (equal? t1 t2)]))
 
+(define (is-supertype? t1 t2 t-classes)
+  (type-case Type t1
+    [objT (super-name)
+          (type-case Type t2
+            [objT (class-name)
+                  (is-superclass? super-name class-name t-classes)]
+            [else #f])]
+    [else (equal? t1 t2)]))
+
 (module+ test
   (define a-t-class (classT 'a 'object empty empty))
   (define b-t-class (classT 'b 'a empty empty))
+  (define c-t-class (classT 'c 'b empty empty))
+  (define d-t-class (classT 'd 'b empty empty))
+
+  ;; Superclass and supertype tests
+  (test (is-superclass? 'a 'c (list a-t-class b-t-class c-t-class))
+        #t)
+  (test (is-superclass? 'c 'b (list  a-t-class b-t-class c-t-class))
+        #f)
+  (test (is-supertype? (objT 'a) (objT 'c) (list a-t-class b-t-class c-t-class))
+        #t)
+  (test (is-supertype? (objT 'b) (objT 'a) (list  a-t-class b-t-class c-t-class))
+        #f)
 
   (test (is-subclass? 'object 'object empty)
         true)
@@ -209,12 +239,10 @@
                (local [(define t (recur obj-expr))]
                  (type-case Type t
                    [objT (class-name-t)
-                         (cond
-                           [(equal? class-name class-name-t) t]
-                           [else (if (or (is-subclass? class-name class-name-t t-classes)
-                                         (is-subclass? class-name-t class-name t-classes))
-                                     t
-                                     (type-error t (symbol->string class-name)))])]
+                         (if (or (is-subtype? t (objT class-name) t-classes)
+                                 (is-supertype? t (objT class-name) t-classes))
+                                 t
+                                 (type-error t "invalid cast"))]
                    [else (type-error t "number")]))]))))
 
 (define (typecheck-send [class-name : symbol]
@@ -403,8 +431,13 @@
   (test (typecheck-posn (castI 'posn posn531))
         (objT 'posn3D))
   
-  (test/exn (typecheck-animal (castI 'posn (newI 'whale (list (numI 4)(numI 30)))))
-            "no type")
+  (test/exn (typecheck (castI 'posn (newI 'whale (list (numI 4)(numI 30)(numI 90))))
+                       (list posn-t-class posn3D-t-class square-t-class
+                             animal-t-class mammal-t-class reptile-t-class
+                             whale-t-class snake-t-class))
+            "invalid cast")
+  (test/exn (typecheck-animal (castI 'snake (newI 'whale (list (numI 10)(numI 50)(numI 87)))))
+            "invalid cast")
   
   (test/exn (typecheck-posn (sendI (numI 10) 'mdist (numI 0)))
             "no type")
